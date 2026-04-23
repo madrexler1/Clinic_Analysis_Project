@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     # Bedrock / LLM
     aws_region: str = Field("eu-central-1", alias="AWS_REGION")
     bedrock_model_id: str = Field(
-        "eu.anthropic.claude-sonnet-4-6-v1:0", alias="SMARTEMIS_BEDROCK_MODEL_ID"
+        "eu.anthropic.claude-sonnet-4-6", alias="SMARTEMIS_BEDROCK_MODEL_ID"
     )
 
     # Pseudonymization

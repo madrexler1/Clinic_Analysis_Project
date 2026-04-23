@@ -32,6 +32,10 @@ class PIIVault:
     def __init__(self, session: Session, *, salt: str):
         self.session = session
         self._salt = salt.encode("utf-8")
+        # Pseudonyms already seen in this vault instance — pandas `.map()` calls
+        # us once per row, often with the same value. Dedupe in memory to avoid
+        # both duplicate INSERTs (UniqueConstraint violation) and N round trips.
+        self._seen: set[str] = set()
 
     def pseudonym_for(self, kind: str, original: str) -> str:
         """Deterministic HMAC-SHA256 pseudonym. Same input + salt → same pseudonym."""
@@ -40,9 +44,13 @@ class PIIVault:
         digest = hmac.new(self._salt, f"{kind}:{original}".encode("utf-8"), sha256).hexdigest()
         pseudo = f"{kind}_{digest[:12]}"
 
+        if pseudo in self._seen:
+            return pseudo
+        self._seen.add(pseudo)
+
         existing = self.session.get(PIIMapping, pseudo)
         if existing is None:
-            self.session.merge(PIIMapping(pseudonym=pseudo, kind=kind, original=original))
+            self.session.add(PIIMapping(pseudonym=pseudo, kind=kind, original=original))
         return pseudo
 
     def lookup(self, pseudonym: str) -> str | None:

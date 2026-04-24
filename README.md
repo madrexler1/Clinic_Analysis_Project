@@ -1,8 +1,8 @@
-# Smartemis Agent
+# Smartemis Clinic Analysis Generator (SCAG)
 
-Clinic-level financial analysis + Claude Sonnet 4.6 consulting report drafting for the Smartemis network (FR/DE veterinary clinics), with an RLHF-lite feedback loop.
+This is our clinic-level financial analysis engine which uses Claude Sonnet 4.6 for consulting report drafting for the Smartemis network, with an RLHF-lite feedback loop.
 
-**Data residency:** All personal data processing must run in **AWS `eu-central-1` (Frankfurt)** via **AWS Bedrock**. The code on this branch is scaffold only; it can run locally against **synthetic** data, but real Smartemis FR/DE customer data must never leave the EU or touch a US developer's machine.
+**Data residency:** We need to confirm this with the DPO, but for now our rule will be that all personal data processing must run in **AWS `eu-central-1` (Frankfurt)** via **AWS Bedrock**. The code on this branch is scaffold only; it can run locally against **synthetic** data, but real Smartemis FR/DE customer data must never leave the EU or touch a developer's machine outside the EU.
 
 ---
 
@@ -51,7 +51,7 @@ uvicorn smartemis.api.main:app --reload --host 127.0.0.1 --port 8000
 
 Open http://127.0.0.1:8000 — pick a clinic (`DE1001`, `DE1002`, ...), click Generate, review, thumbs up/down + comment.
 
-> **Bedrock access.** For local dev you need an IAM user or SSO profile with `bedrock:InvokeModelWithResponseStream` on the EU Sonnet 4.6 cross-region profile. In production the EC2 instance role provides this — no local creds needed. If Bedrock isn't available, the ingestion + analytics + UI all still work; only report generation will fail.
+> **Bedrock access.** For local dev we need an IAM user or SSO profile with `bedrock:InvokeModelWithResponseStream` on the EU Sonnet 4.6 cross-region profile. In production the EC2 instance role provides this; no local creds needed. If Bedrock isn't available, the ingestion + analytics + UI all still work; only report generation will fail.
 
 ---
 
@@ -91,9 +91,9 @@ Open http://127.0.0.1:8000 — pick a clinic (`DE1001`, `DE1002`, ...), click Ge
 
 ---
 
-## Terraform deployment (Phase 2 — to build next)
+## Terraform deployment (Phase 2, which we will build next)
 
-Planned `infra/` layout (not yet implemented):
+Planned `infra/` layout:
 
 ```
 infra/

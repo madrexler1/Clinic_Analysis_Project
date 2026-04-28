@@ -77,6 +77,26 @@ function renderRubric(scores) {
   return `<div class="rubric">${cells}</div>`;
 }
 
+function renderFewShots(examples) {
+  if (!examples || examples.length === 0) {
+    return `<div class="few-shot-bar empty">
+      <span class="label">Few-shot examples used:</span>
+      <span class="muted">none — cold-start run (no thumbs-up'd reports yet, or set to 0)</span>
+    </div>`;
+  }
+  const pills = examples.map((ex) => `
+    <button class="few-shot-pill" data-id="${ex.id}" title="${escapeHtml(ex.snippet || "")}">
+      <span class="pill-id">#${ex.id}</span>
+      <span class="pill-clinic">${ex.clinic_site}</span>
+      <span class="pill-score ${ex.net_score > 0 ? "pos" : ""}">+${ex.net_score}</span>
+    </button>
+  `).join("");
+  return `<div class="few-shot-bar">
+    <span class="label">Few-shot examples used (${examples.length}):</span>
+    ${pills}
+  </div>`;
+}
+
 function renderReport(r) {
   state.currentReportId = r.report_id ?? r.id;
   $("report-view").innerHTML = `
@@ -86,9 +106,14 @@ function renderReport(r) {
       <div class="cell"><div class="label">Tokens in/out</div><div class="value">${r.input_tokens}/${r.output_tokens}</div></div>
       <div class="cell"><div class="label">Cache hit</div><div class="value">${r.cache_read_tokens}</div></div>
     </div>
+    ${renderFewShots(r.few_shot_examples)}
     ${renderRubric(r.rubric_scores)}
     <pre>${escapeHtml(r.text)}</pre>
   `;
+  // Wire pill clicks → load that past report
+  document.querySelectorAll(".few-shot-pill").forEach((btn) => {
+    btn.addEventListener("click", () => loadReport(Number(btn.dataset.id)));
+  });
   $("feedback-panel").classList.remove("hidden");
   $("feedback-text").value = "";
   $("feedback-status").textContent = "";

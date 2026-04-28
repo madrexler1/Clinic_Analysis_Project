@@ -86,3 +86,25 @@ button:disabled { background: var(--border); color: var(--muted); cursor: not-al
 .rubric .cell { background: var(--bg); padding: 6px 8px; border-radius: 6px; font-size: 11px; }
 .rubric .label { text-transform: uppercase; color: var(--muted); font-size: 9px; letter-spacing: 0.04em; }
 .rubric .score { font-size: 16px; font-weight: 700; }
+
+.few-shot-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  background: var(--bg); padding: 8px 10px; border-radius: 6px; margin: 12px 0;
+  font-size: 12px;
+}
+.few-shot-bar.empty { color: var(--muted); }
+.few-shot-bar .label {
+  text-transform: uppercase; color: var(--muted); font-size: 10px;
+  letter-spacing: 0.05em; margin-right: 4px;
+}
+.few-shot-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--bg-card); border: 1px solid var(--border); color: var(--fg);
+  padding: 3px 8px; font-size: 11px; border-radius: 999px; cursor: pointer;
+  font-weight: 500;
+}
+.few-shot-pill:hover { border-color: var(--accent); background: var(--bg-card); }
+.few-shot-pill .pill-id { color: var(--muted); font-family: "SF Mono", Menlo, Consolas, monospace; }
+.few-shot-pill .pill-clinic { color: var(--fg); }
+.few-shot-pill .pill-score { color: var(--muted); font-size: 10px; }
+.few-shot-pill .pill-score.pos { color: var(--ok); }

@@ -29,6 +29,7 @@ from .schemas import (
     ClinicListResponse,
     FeedbackRequest,
     FeedbackResponse,
+    FewShotRef,
     ReportRequest,
     ReportResponse,
     ReportSummary,
@@ -73,6 +74,37 @@ def get_db() -> Session:
 
 def get_generator() -> ReportGenerator:
     return ReportGenerator(settings)
+
+
+def _expand_few_shot_refs(db: Session, ids: list[int] | None) -> list[FewShotRef]:
+    """Hydrate a list of past-report IDs into UI-facing few-shot refs."""
+    if not ids:
+        return []
+    net_expr = func.coalesce(
+        func.sum(
+            case((Feedback.thumbs == "up", 1), (Feedback.thumbs == "down", -1), else_=0)
+        ),
+        0,
+    ).label("net_score")
+    rows = (
+        db.query(Report, net_expr)
+        .outerjoin(Feedback, Feedback.report_id == Report.id)
+        .filter(Report.id.in_(ids))
+        .group_by(Report.id)
+        .all()
+    )
+    by_id = {r.id: (r, int(n or 0)) for r, n in rows}
+    refs: list[FewShotRef] = []
+    for rid in ids:
+        if rid not in by_id:
+            continue
+        r, net_score = by_id[rid]
+        snippet = (r.text or "").strip().splitlines()[0:1]
+        snippet_text = (snippet[0][:140] + "…") if snippet and len(snippet[0]) > 140 else (snippet[0] if snippet else "")
+        refs.append(
+            FewShotRef(id=r.id, clinic_site=r.clinic_site, net_score=net_score, snippet=snippet_text)
+        )
+    return refs
 
 
 @app.get("/api/health")
@@ -134,6 +166,7 @@ def create_report(
         output_tokens=draft.output_tokens,
         cache_read_tokens=draft.cache_read_tokens,
         cache_write_tokens=draft.cache_write_tokens,
+        few_shot_ids=draft.few_shot_ids,
     )
 
     rubric_scores = None
@@ -154,6 +187,7 @@ def create_report(
         cache_read_tokens=report.cache_read_tokens,
         cache_write_tokens=report.cache_write_tokens,
         rubric_scores=rubric_scores,
+        few_shot_examples=_expand_few_shot_refs(db, report.few_shot_ids),
         created_at=report.created_at,
     )
 
@@ -203,6 +237,7 @@ def get_report(report_id: int, db: Session = Depends(get_db)):
         cache_read_tokens=r.cache_read_tokens,
         cache_write_tokens=r.cache_write_tokens,
         rubric_scores=r.rubric_scores,
+        few_shot_examples=_expand_few_shot_refs(db, r.few_shot_ids),
         created_at=r.created_at,
     )
 

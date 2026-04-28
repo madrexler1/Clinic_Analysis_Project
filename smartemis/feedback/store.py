@@ -39,6 +39,7 @@ class FeedbackStore:
         output_tokens: int = 0,
         cache_read_tokens: int = 0,
         cache_write_tokens: int = 0,
+        few_shot_ids: list[int] | None = None,
     ) -> Report:
         r = Report(
             clinic_site=clinic_site,
@@ -52,6 +53,7 @@ class FeedbackStore:
             output_tokens=output_tokens,
             cache_read_tokens=cache_read_tokens,
             cache_write_tokens=cache_write_tokens,
+            few_shot_ids=few_shot_ids or [],
         )
         self.session.add(r)
         self.session.flush()

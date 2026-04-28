@@ -13,6 +13,13 @@ class ReportRequest(BaseModel):
     score_after_generate: bool = True
 
 
+class FewShotRef(BaseModel):
+    id: int
+    clinic_site: str
+    net_score: int
+    snippet: str  # first ~140 chars of the example report — for UI preview
+
+
 class ReportResponse(BaseModel):
     report_id: int
     clinic_site: str
@@ -23,6 +30,7 @@ class ReportResponse(BaseModel):
     cache_read_tokens: int
     cache_write_tokens: int
     rubric_scores: dict[str, Any] | None = None
+    few_shot_examples: list[FewShotRef] = []
     created_at: datetime
 
 

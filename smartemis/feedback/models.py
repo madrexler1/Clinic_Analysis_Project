@@ -25,6 +25,9 @@ class Report(Base):
     model_id: Mapped[str] = mapped_column(String(128))
     kpi_payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     rubric_scores: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    # IDs of past reports that were spliced into this generation's system prompt
+    # as few-shot examples (RLHF-lite trace). Null/empty list = cold-start run.
+    few_shot_ids: Mapped[list[int] | None] = mapped_column(JSON, nullable=True)
 
     input_tokens: Mapped[int] = mapped_column(Integer, default=0)
     output_tokens: Mapped[int] = mapped_column(Integer, default=0)

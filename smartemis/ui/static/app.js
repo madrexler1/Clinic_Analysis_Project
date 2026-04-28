@@ -99,7 +99,15 @@ function renderFewShots(examples) {
 
 function renderReport(r) {
   state.currentReportId = r.report_id ?? r.id;
+  const reportId = state.currentReportId;
   $("report-view").innerHTML = `
+    <div class="report-header">
+      <div class="report-title">Report #${reportId} · ${r.clinic_site}</div>
+      <a class="download-btn" href="/api/reports/${reportId}/download"
+         download="Smartemis_Report_${r.clinic_site}.pdf">
+        ⬇ Download PDF
+      </a>
+    </div>
     <div class="meta-grid">
       <div class="cell"><div class="label">Clinic</div><div class="value">${r.clinic_site}</div></div>
       <div class="cell"><div class="label">Model</div><div class="value">${r.model_id.replace("eu.anthropic.", "")}</div></div>

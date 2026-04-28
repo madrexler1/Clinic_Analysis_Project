@@ -14,12 +14,13 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from smartemis.config import get_settings
+from smartemis.export import build_clinic_report_pdf
 from smartemis.feedback import Feedback, FeedbackStore, Report
 from smartemis.reports import ReportGenerator
 from smartemis.storage import SessionLocal, init_db
@@ -251,6 +252,41 @@ def add_feedback(report_id: int, req: FeedbackRequest, db: Session = Depends(get
     fb = store.record_feedback(report_id, reviewer=req.reviewer, thumbs=req.thumbs, comment=req.comment)
     return FeedbackResponse(
         id=fb.id, report_id=fb.report_id, thumbs=fb.thumbs, created_at=fb.created_at
+    )
+
+
+@app.get("/api/reports/{report_id}/download")
+def download_report_pdf(report_id: int, db: Session = Depends(get_db)):
+    """Branded PDF export of a report — narrative + charts + KPI appendix."""
+    r = db.get(Report, report_id)
+    if r is None:
+        raise HTTPException(404, "Report not found")
+
+    kpis = r.kpi_payload or {}
+    peers: dict = {}
+    if r.clinic_site:
+        try:
+            _, peers = kpis_and_benchmarks(r.clinic_site)
+        except (ValueError, FileNotFoundError) as e:
+            logger.warning("Peer benchmarks unavailable for %s: %s", r.clinic_site, e)
+
+    pdf_bytes = build_clinic_report_pdf(
+        clinic_site=r.clinic_site,
+        period_start=r.period_start,
+        period_end=r.period_end,
+        report_text=r.text,
+        kpi_payload=kpis,
+        peer_benchmarks=peers,
+        rubric_scores=r.rubric_scores,
+        model_id=r.model_id,
+        report_id=r.id,
+        generated_at=r.created_at,
+    )
+    filename = f"Smartemis_Report_{r.clinic_site}_{r.period_start}_to_{r.period_end}.pdf".replace(":", "-")
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

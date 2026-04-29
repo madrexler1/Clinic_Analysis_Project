@@ -151,6 +151,19 @@ async function loadReport(id) {
   }
 }
 
+function renderStreamingShell(clinic) {
+  $("report-view").innerHTML = `
+    <div class="report-header">
+      <div class="report-title">Generating · ${escapeHtml(clinic)}</div>
+      <span class="streaming-pill" id="stream-status">
+        <span class="dot"></span><span id="stream-elapsed">0.0s</span>
+      </span>
+    </div>
+    <pre id="stream-text" class="streaming"></pre>
+  `;
+  $("feedback-panel").classList.add("hidden");
+}
+
 async function generateReport() {
   const clinic = $("clinic-select").value;
   const few = Number($("few-shot").value);
@@ -158,20 +171,89 @@ async function generateReport() {
   if (!clinic) return;
   const btn = $("generate-btn");
   btn.disabled = true;
-  $("generate-status").textContent = "Generating (this takes ~15-40s)...";
+  $("generate-status").textContent = "Streaming…";
+
+  renderStreamingShell(clinic);
+  const textEl = $("stream-text");
+  const elapsedEl = $("stream-elapsed");
+  const startedAt = performance.now();
+  const tick = setInterval(() => {
+    const s = (performance.now() - startedAt) / 1000;
+    if (elapsedEl) elapsedEl.textContent = `${s.toFixed(1)}s`;
+  }, 100);
+
+  let buffer = "";
+  let doneEvent = null;
+  let errorMsg = null;
+
   try {
-    const r = await api("/api/reports", {
+    const resp = await fetch("/api/reports/stream", {
       method: "POST",
-      body: { clinic_site: clinic, few_shot_n: few, score_after_generate: score },
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        clinic_site: clinic,
+        few_shot_n: few,
+        score_after_generate: score,
+      }),
     });
-    $("generate-status").textContent = "Done.";
-    renderReport(r);
-    loadRecent();
+    if (!resp.ok) throw new Error(`${resp.status}: ${await resp.text()}`);
+    if (!resp.body) throw new Error("No response body — fetch streaming unsupported");
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let nl;
+      while ((nl = buffer.indexOf("\n")) !== -1) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (!line) continue;
+        let ev;
+        try { ev = JSON.parse(line); } catch (e) { continue; }
+        if (ev.type === "token") {
+          textEl.textContent += ev.text;
+          textEl.scrollTop = textEl.scrollHeight;
+        } else if (ev.type === "done") {
+          doneEvent = ev;
+        } else if (ev.type === "error") {
+          errorMsg = ev.message;
+        }
+      }
+    }
   } catch (e) {
-    $("generate-status").textContent = `Error: ${e.message}`;
+    errorMsg = e.message;
   } finally {
+    clearInterval(tick);
     btn.disabled = false;
   }
+
+  if (errorMsg) {
+    $("generate-status").textContent = `Error: ${errorMsg}`;
+    return;
+  }
+  if (!doneEvent) {
+    $("generate-status").textContent = "Stream ended without a final event.";
+    return;
+  }
+
+  $("generate-status").textContent = `Done in ${((performance.now() - startedAt) / 1000).toFixed(1)}s.`;
+  // Render the final, structured report (replaces the streaming shell)
+  renderReport({
+    report_id: doneEvent.report_id,
+    clinic_site: doneEvent.clinic_site,
+    text: textEl.textContent,
+    model_id: doneEvent.model_id,
+    input_tokens: doneEvent.input_tokens,
+    output_tokens: doneEvent.output_tokens,
+    cache_read_tokens: doneEvent.cache_read_tokens,
+    cache_write_tokens: doneEvent.cache_write_tokens,
+    rubric_scores: doneEvent.rubric_scores,
+    few_shot_examples: doneEvent.few_shot_examples,
+  });
+  loadRecent();
 }
 
 async function submitFeedback() {

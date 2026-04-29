@@ -78,15 +78,20 @@ class ReportGenerator:
             f"<kpi_payload>\n{json.dumps(payload, indent=2, ensure_ascii=False)}\n</kpi_payload>"
         )
 
-    def generate(
+    def stream_generate(
         self,
         kpis: "ClinicKPIs",
         peer_benchmarks: dict[str, Any],
         *,
         few_shot_examples: list[dict[str, Any]] | None = None,
         max_tokens: int = 8000,
-    ) -> ReportDraft:
-        """Stream a report from Bedrock Claude Sonnet 4.6 and return the full draft."""
+    ):
+        """Yield text chunks as they arrive from Bedrock, then yield one final
+        event of shape ``{'type': 'final', 'draft': ReportDraft}``.
+
+        Used by the streaming HTTP endpoint so the browser sees the report
+        being written word-by-word.
+        """
         system_blocks = self._build_system(few_shot_examples or [])
         user_content = self._build_user_message(kpis, peer_benchmarks)
 
@@ -100,9 +105,10 @@ class ReportGenerator:
         ) as stream:
             for text in stream.text_stream:
                 text_parts.append(text)
+                yield {"type": "token", "text": text}
             final = stream.get_final_message()
 
-        return ReportDraft(
+        draft = ReportDraft(
             clinic_site=kpis.clinic_site,
             text="".join(text_parts),
             model_id=self.settings.bedrock_model_id,
@@ -112,6 +118,27 @@ class ReportGenerator:
             cache_write_tokens=getattr(final.usage, "cache_creation_input_tokens", 0) or 0,
             few_shot_ids=[ex["id"] for ex in (few_shot_examples or []) if "id" in ex],
         )
+        yield {"type": "final", "draft": draft}
+
+    def generate(
+        self,
+        kpis: "ClinicKPIs",
+        peer_benchmarks: dict[str, Any],
+        *,
+        few_shot_examples: list[dict[str, Any]] | None = None,
+        max_tokens: int = 8000,
+    ) -> ReportDraft:
+        """Non-streaming wrapper around stream_generate — used by tests and the
+        legacy POST /api/reports endpoint. Drops token events on the floor."""
+        draft: ReportDraft | None = None
+        for ev in self.stream_generate(
+            kpis, peer_benchmarks,
+            few_shot_examples=few_shot_examples, max_tokens=max_tokens,
+        ):
+            if ev["type"] == "final":
+                draft = ev["draft"]
+        assert draft is not None
+        return draft
 
     def score(self, report_text: str) -> dict[str, Any]:
         """Second-pass rubric scorer. Returns a dict of 1-5 scores per dimension."""

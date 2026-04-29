@@ -13,8 +13,10 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import json
+
 from fastapi import Depends, FastAPI, HTTPException
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
@@ -252,6 +254,101 @@ def add_feedback(report_id: int, req: FeedbackRequest, db: Session = Depends(get
     fb = store.record_feedback(report_id, reviewer=req.reviewer, thumbs=req.thumbs, comment=req.comment)
     return FeedbackResponse(
         id=fb.id, report_id=fb.report_id, thumbs=fb.thumbs, created_at=fb.created_at
+    )
+
+
+@app.post("/api/reports/stream")
+def create_report_stream(
+    req: ReportRequest,
+    db: Session = Depends(get_db),
+    gen: ReportGenerator = Depends(get_generator),
+):
+    """Server → browser stream of the report draft as Bedrock generates it.
+
+    Emits newline-delimited JSON. Event shapes:
+        {"type":"start", "clinic_site":"DE1001"}
+        {"type":"token", "text":"..."}                 (many)
+        {"type":"done",  "report_id":N, "rubric_scores":..., "few_shot_examples":[...], ...}
+        {"type":"error", "message":"..."}              (instead of done on failure)
+    """
+    try:
+        kpis, peers = kpis_and_benchmarks(req.clinic_site)
+    except ValueError as e:
+        raise HTTPException(404, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(503, detail=str(e))
+
+    store = FeedbackStore(db)
+    few_shot = store.top_few_shot_examples(limit=req.few_shot_n) if req.few_shot_n else []
+
+    def event_stream():
+        yield json.dumps({"type": "start", "clinic_site": req.clinic_site}) + "\n"
+        draft = None
+        try:
+            for ev in gen.stream_generate(
+                kpis, peers,
+                few_shot_examples=few_shot,
+                max_tokens=req.max_tokens,
+            ):
+                if ev["type"] == "token":
+                    yield json.dumps({"type": "token", "text": ev["text"]}) + "\n"
+                elif ev["type"] == "final":
+                    draft = ev["draft"]
+        except Exception as e:
+            logger.exception("Stream generation failed")
+            yield json.dumps({"type": "error", "message": str(e)}) + "\n"
+            return
+
+        if draft is None:
+            yield json.dumps({"type": "error", "message": "Generator produced no final event."}) + "\n"
+            return
+
+        report = store.save_report(
+            clinic_site=draft.clinic_site,
+            period_start=kpis.period_start,
+            period_end=kpis.period_end,
+            text=draft.text,
+            model_id=draft.model_id,
+            kpi_payload=kpis.as_prompt_payload(),
+            input_tokens=draft.input_tokens,
+            output_tokens=draft.output_tokens,
+            cache_read_tokens=draft.cache_read_tokens,
+            cache_write_tokens=draft.cache_write_tokens,
+            few_shot_ids=draft.few_shot_ids,
+        )
+
+        rubric_scores = None
+        if req.score_after_generate:
+            try:
+                rubric_scores = gen.score(draft.text)
+                store.attach_rubric(report.id, rubric_scores)
+            except Exception as e:
+                logger.warning("Rubric scoring failed for report %d: %s", report.id, e)
+
+        few_shot_refs = _expand_few_shot_refs(db, report.few_shot_ids)
+
+        yield json.dumps({
+            "type": "done",
+            "report_id": report.id,
+            "clinic_site": report.clinic_site,
+            "model_id": draft.model_id,
+            "input_tokens": draft.input_tokens,
+            "output_tokens": draft.output_tokens,
+            "cache_read_tokens": draft.cache_read_tokens,
+            "cache_write_tokens": draft.cache_write_tokens,
+            "rubric_scores": rubric_scores,
+            "few_shot_examples": [r.model_dump() for r in few_shot_refs],
+            "created_at": report.created_at.isoformat(),
+        }) + "\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="application/x-ndjson",
+        headers={
+            "Cache-Control": "no-cache",
+            # Prevents nginx from buffering — needed for live token delivery.
+            "X-Accel-Buffering": "no",
+        },
     )
 
 

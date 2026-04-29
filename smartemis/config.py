@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     )
 
     # Runtime
-    env: Literal["local", "staging", "production"] = Field("local", alias="SMARTEMIS_ENV")
+    env: Literal["local", "draft", "staging", "production"] = Field("local", alias="SMARTEMIS_ENV")
     log_level: str = Field("INFO", alias="SMARTEMIS_LOG_LEVEL")
 
     # Data source

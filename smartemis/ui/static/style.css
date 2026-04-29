@@ -76,6 +76,36 @@ button:disabled { background: var(--border); color: var(--muted); cursor: not-al
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
 }
+
+.streaming-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 999px; font-size: 11px;
+  background: var(--bg); border: 1px solid var(--accent); color: var(--accent);
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+}
+.streaming-pill .dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+  animation: stream-pulse 1s ease-in-out infinite;
+}
+@keyframes stream-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.3; transform: scale(0.7); }
+}
+pre.streaming {
+  background: var(--bg); padding: 14px; border-radius: 6px;
+  white-space: pre-wrap; word-wrap: break-word;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px; line-height: 1.55;
+  max-height: 70vh; overflow-y: auto;
+  border: 1px solid var(--accent);
+  min-height: 6em;
+}
+pre.streaming::after {
+  content: "▋";
+  color: var(--accent);
+  animation: cursor-blink 1.05s steps(2) infinite;
+}
+@keyframes cursor-blink { 50% { opacity: 0; } }
 .report-title { font-size: 15px; font-weight: 600; color: var(--fg); }
 .download-btn {
   background: var(--accent); color: #0b1220; border: none; border-radius: 6px;

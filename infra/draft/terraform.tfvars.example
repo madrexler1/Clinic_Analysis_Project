@@ -1,0 +1,5 @@
+# Copy to terraform.tfvars (which is gitignored) and fill in.
+# Or set TF_VAR_basic_auth_password as an env var so the password never lands on disk.
+
+basic_auth_username = "smartemis"
+basic_auth_password = "REPLACE_ME"

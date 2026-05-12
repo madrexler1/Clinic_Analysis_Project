@@ -3,63 +3,151 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Smartemis Agent — Reviewer</title>
+  <title>Smartemis — Reporting Generator Landing</title>
   <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    body { min-height: 100vh; }
+    .mockup-wrap {
+      max-width: 1100px;
+      margin: 28px auto;
+      padding: 0 20px 36px;
+    }
+    .hero {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 18px;
+      align-items: stretch;
+      margin-bottom: 18px;
+    }
+    .hero .card h2 { margin-top: 0; font-size: 26px; }
+    .hero p { margin: 6px 0; color: var(--muted); }
+    .quick-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    .quick-actions .ghost {
+      background: transparent;
+      color: var(--fg);
+      border: 1px solid var(--border);
+    }
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .kpi {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .kpi .label { color: var(--muted); font-size: 11px; text-transform: uppercase; }
+    .kpi .value { font-size: 22px; font-weight: 700; margin-top: 4px; }
+    .layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 16px;
+    }
+    .stack { display: flex; flex-direction: column; gap: 12px; }
+    .mock-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    .mock-list li {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      background: var(--bg);
+    }
+    .tag { font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); }
+    .report-preview {
+      background: var(--bg);
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      min-height: 280px;
+    }
+    @media (max-width: 900px) {
+      .hero, .layout { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
 <body>
   <header>
-    <h1>Smartemis Agent</h1>
-    <span id="env-badge" class="badge">loading&hellip;</span>
+    <h1>Smartemis Reporting</h1>
+    <span class="badge">mockup v1</span>
   </header>
 
-  <main>
-    <section class="sidebar">
-      <h2>Generate report</h2>
-      <label>
-        Clinic
-        <select id="clinic-select"></select>
-      </label>
-      <label>
-        Few-shot examples
-        <input id="few-shot" type="number" min="0" max="5" value="2" />
-      </label>
-      <label class="row">
-        <input id="auto-score" type="checkbox" checked />
-        Auto-score (rubric)
-      </label>
-      <button id="generate-btn">Generate</button>
-      <p id="generate-status" class="muted"></p>
-
-      <h2>Recent reports</h2>
-      <ul id="recent-list"></ul>
-    </section>
-
-    <section class="content">
-      <div id="report-view" class="card">
-        <p class="muted">Select or generate a report to view it here.</p>
-      </div>
-
-      <div id="feedback-panel" class="card hidden">
-        <h3>Your feedback</h3>
-        <label>
-          Reviewer name
-          <input id="reviewer-name" type="text" placeholder="e.g. a.mueller" />
-        </label>
-        <div class="thumbs">
-          <button class="thumb" data-value="up">&#128077; Thumbs up</button>
-          <button class="thumb" data-value="down">&#128078; Thumbs down</button>
+  <div class="mockup-wrap">
+    <section class="hero">
+      <div class="card">
+        <h2>Generate your first clinic report</h2>
+        <p>Start with one site, pick your reporting style, and let Smartemis build a clean operational summary in under a minute.</p>
+        <div class="quick-actions">
+          <button>Start New Report</button>
+          <button class="ghost">Use Last Settings</button>
+          <a class="download-btn" href="/static/reviewer.html" style="text-decoration:none;">Open Reviewer UI</a>
         </div>
-        <label>
-          Comment (optional)
-          <textarea id="feedback-text" rows="4"
-            placeholder="What would make this report more useful? Missing context, wrong emphasis, etc."></textarea>
-        </label>
-        <button id="submit-feedback">Submit feedback</button>
-        <p id="feedback-status" class="muted"></p>
+        <div class="kpi-row">
+          <div class="kpi">
+            <div class="label">Reports this week</div>
+            <div class="value">18</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Average generation time</div>
+            <div class="value">42s</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Positive feedback</div>
+            <div class="value">91%</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0">Landing goals (UX notes)</h3>
+        <ul>
+          <li>Clear single CTA for first-time users.</li>
+          <li>Visible status + confidence metrics up front.</li>
+          <li>Preset templates for Operations, Finance, and Clinical Quality.</li>
+          <li>Recent activity accessible without leaving landing view.</li>
+        </ul>
       </div>
     </section>
-  </main>
 
-  <script src="/static/app.js"></script>
+    <section class="layout">
+      <aside class="stack">
+        <div class="card">
+          <h3 style="margin-top:0">Report setup</h3>
+          <label>Clinic site
+            <select><option>Berlin Central</option><option>Munich West</option></select>
+          </label>
+          <label>Template
+            <select><option>Executive Summary</option><option>Operations Deep Dive</option></select>
+          </label>
+          <label>Time range
+            <select><option>Last 30 days</option><option>Last 90 days</option></select>
+          </label>
+          <label class="row"><input type="checkbox" checked /> Include peer benchmarks</label>
+          <button style="margin-top:10px">Generate Report</button>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0">Recent reports</h3>
+          <ul class="mock-list">
+            <li><div class="tag">Today</div> Berlin Central · Executive Summary</li>
+            <li><div class="tag">Yesterday</div> Munich West · Operations Deep Dive</li>
+            <li><div class="tag">May 8</div> Hamburg South · Weekly Snapshot</li>
+          </ul>
+        </div>
+      </aside>
+
+      <div class="card">
+        <h3 style="margin-top:0">Preview panel</h3>
+        <div class="report-preview">
+          <p><strong>Clinic performance highlights</strong></p>
+          <p>• Patient throughput increased by 7.3% compared to last month.</p>
+          <p>• No-show rate dropped to 5.2% (best among peer group).</p>
+          <p>• Next best action: increase evening slot capacity on Tue/Thu.</p>
+          <p class="muted" style="margin-top:20px">Mock preview content for first landing page wireframe.</p>
+        </div>
+      </div>
+    </section>
+  </div>
 </body>
 </html>
